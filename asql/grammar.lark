@@ -1,0 +1,64 @@
+?start: query
+
+query: source+ (pipe_op transformation)*
+
+source: "FROM" ESCAPED_STRING ["AS" identifier]   -> from_source
+      | "JOIN" ESCAPED_STRING ["AS" identifier]   -> join_source
+
+pipe_op: "|"
+
+transformation: range_clause
+              | window_clause
+              | aggregate_func
+              | threshold_clause
+              | map_clause
+              | emit_clause
+              | rolling_clause
+
+range_clause: "RANGE last" duration
+window_clause: "WINDOW every" duration
+
+aggregate_func: "MEAN()" ["AS" ESCAPED_STRING]    -> mean_func
+              | "VAR()"  ["AS" ESCAPED_STRING]    -> var_func
+              | "STDDEV()" ["AS" ESCAPED_STRING]  -> stddev_func
+              | "MIN()" ["AS" ESCAPED_STRING]     -> min_func
+              | "MAX()" ["AS" ESCAPED_STRING]     -> max_func
+              | "COVAR(" identifier "," identifier ")" ["AS" ESCAPED_STRING] -> covar_func
+
+rolling_clause: "ROLLING_CORR(" identifier "," identifier "," "window=" duration "," "step=" duration ")" ["AS" ESCAPED_STRING]
+
+threshold_clause: "THRESHOLD" condition
+condition: expression COMPARISON_OP value
+COMPARISON_OP: ">" | "<" | ">=" | "<=" | "=="
+
+map_clause: "MAP(" identifier "=" expression ")" -> map_assign
+          | "MAP(" identifier ")"                -> map_simple
+
+emit_clause: "EMIT" ESCAPED_STRING
+
+?expression: func_call
+           | array_access
+           | term
+
+func_call: identifier "(" arg_list ")"
+arg_list: [expression ("," expression)*]
+
+array_access: identifier "[" index_list "]"
+
+index_list: NUMBER ("," NUMBER)*
+
+?term: identifier
+     | NUMBER
+     | ESCAPED_STRING
+
+identifier: CNAME
+duration: NUMBER DURATION_UNIT
+DURATION_UNIT: "s" | "m" | "h" | "d"
+value: NUMBER | PERCENT | identifier | array_access
+PERCENT: NUMBER "%"
+
+%import common.ESCAPED_STRING
+%import common.CNAME
+%import common.NUMBER
+%import common.WS
+%ignore WS
